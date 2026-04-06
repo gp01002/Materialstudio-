@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>異材質創作工坊 — ATELIER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Space+Mono:wght@400;700&family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #0a0806;
+    --paper: #f5f0e8;
+    --gold: #c8a96e;
+    --rust: #9c4b2a;
+    --sage: #4a5e4f;
+    --panel-bg: rgba(10, 8, 6, 0.92);
+    --border: rgba(200, 169, 110, 0.2);
+    --active-wood: #8b5a2b;
+    --active-metal: #6e8ea0;
+    --active-marble: #7c5c8e;
+  }
+
+  body {
+    background: #0a0806;
+    font-family: 'Space Mono', monospace;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    height: 100vh; width: 100vw;
+  }
+
+  /* ── INTRO SCREEN ── */
+  #intro {
+    position: fixed; inset: 0; z-index: 200;
+    background: #0a0806;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    gap: 0;
+  }
+  #intro .logo {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: clamp(40px, 8vw, 80px);
+    color: #fff;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  #intro .sub {
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    margin-bottom: 60px;
+  }
+  .material-cards {
+    display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+    padding: 0 20px;
+    margin-bottom: 48px;
+  }
+  .mat-card {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    width: 160px;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+  }
+  .mat-card:hover { border-color: var(--gold); transform: translateY(-4px); }
+  .mat-card .icon { font-size: 32px; margin-bottom: 10px; }
+  .mat-card .name { font-family: 'Playfair Display', serif; font-size: 14px; color: #fff; }
+  .mat-card .desc { font-size: 10px; color: #666; margin-top: 4px; letter-spacing: 0.1em; }
+
+  #startAll {
+    background: var(--gold);
+    color: #0a0806;
+    border: none;
+    padding: 14px 48px;
+    border-radius: 100px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  #startAll:hover { background: #fff; transform: scale(1.03); }
+  #startAll:active { transform: scale(0.97); }
+
+  /* ── MAIN LAYOUT ── */
+  #app { display: none; width: 100vw; height: 100vh; position: relative; }
+
+  /* ── MATERIAL TABS ── */
+  #mat-tabs {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 52px;
+    background: var(--panel-bg);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 20px;
+    gap: 4px;
+    z-index: 100;
+  }
+  .mat-tab {
+    padding: 6px 16px;
+    border-radius: 100px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.25s;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .mat-tab:hover { color: #999; }
+  .mat-tab.active-wood { background: rgba(139,90,43,0.2); color: #d2a06a; border-color: rgba(139,90,43,0.4); }
+  .mat-tab.active-metal { background: rgba(110,142,160,0.2); color: #8ab4c8; border-color: rgba(110,142,160,0.4); }
+  .mat-tab.active-marble { background: rgba(124,92,142,0.2); color: #b48acc; border-color: rgba(124,92,142,0.4); }
+
+  #tab-title {
+    margin-left: auto;
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 15px;
+    color: #333;
+  }
+
+  /* ── CANVAS AREA ── */
+  #canvas-wrap {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  canvas { position: absolute; }
+  #mainCanvas { cursor: none; }
+  #fxCanvas { pointer-events: none; }
+
+  /* ── TOOL PANEL ── */
+  #tool-panel {
+    position: fixed;
+    right: 16px; top: 50%; transform: translateY(-50%);
+    background: var(--panel-bg);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 20px 16px;
+    width: 196px;
+    z-index: 100;
+    color: #888;
+    display: flex; flex-direction: column; gap: 16px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+  #tool-panel::-webkit-scrollbar { display: none; }
+
+  .panel-section h4 {
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #444;
+    margin-bottom: 8px;
+  }
+  .btn-grid { display: flex; flex-direction: column; gap: 5px; }
+  .btn-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+
+  .t-btn {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 10px;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .t-btn:hover { border-color: rgba(255,255,255,0.15); color: #888; }
+  .t-btn.on-wood { background: rgba(139,90,43,0.25); color: #d2a06a; border-color: rgba(139,90,43,0.5); }
+  .t-btn.on-metal { background: rgba(110,142,160,0.25); color: #8ab4c8; border-color: rgba(110,142,160,0.5); }
+  .t-btn.on-marble { background: rgba(124,92,142,0.25); color: #b48acc; border-color: rgba(124,92,142,0.5); }
+
+  .slider-wrap label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: #444;
+    margin-bottom: 6px;
+  }
+  .slider-wrap label span { font-size: 10px; color: #666; letter-spacing: 0; }
+  input[type=range] {
+    width: 100%; height: 3px;
+    -webkit-appearance: none; appearance: none;
+    background: rgba(255,255,255,0.1); border-radius: 2px; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--gold); border: 2px solid #0a0806;
+  }
+
+  /* Marble color swatches */
+  .color-swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+  .swatch {
+    width: 100%; aspect-ratio: 1; border-radius: 50%;
+    cursor: pointer; border: 2px solid transparent; transition: all 0.2s;
+  }
+  .swatch:hover, .swatch.selected { border-color: #fff; transform: scale(1.1); }
+
+  .clear-btn {
+    background: transparent;
+    border: 1px solid rgba(200,100,80,0.3);
+    color: rgba(200,100,80,0.7);
+    border-radius: 10px; padding: 9px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; letter-spacing: 0.1em;
+    cursor: pointer; width: 100%; transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .clear-btn:hover { background: rgba(200,100,80,0.15); color: #e07060; }
+
+  /* tool panels visibility */
+  .sub-panel { display: none; }
+  .sub-panel.visible { display: contents; }
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div id="intro">
+  <div class="logo">Atelier</div>
+  <div class="sub">異材質創作工坊</div>
+  <div class="material-cards">
+    <div class="mat-card">
+      <div class="icon">🪵</div>
+      <div class="name">木雕</div>
+      <div class="desc">WOOD CARVING</div>
+    </div>
+    <div class="mat-card">
+      <div class="icon">🔨</div>
+      <div class="name">金屬鍛造</div>
+      <div class="desc">METAL FORGE</div>
+    </div>
+    <div class="mat-card">
+      <div class="icon">🎨</div>
+      <div class="name">異材質筆刷</div>
+      <div class="desc">TEXTURE BRUSH</div>
+    </div>
+  </div>
+  <button id="startAll">進入工坊</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- Material Tabs -->
+  <nav id="mat-tabs">
+    <div class="mat-tab" data-mat="wood" onclick="switchMaterial('wood')">🪵 木雕工坊</div>
+    <div class="mat-tab" data-mat="metal" onclick="switchMaterial('metal')">🔨 金屬鍛造</div>
+    <div class="mat-tab" data-mat="marble" onclick="switchMaterial('marble')">🎨 異材質筆刷</div>
+    <div id="tab-title">Atelier</div>
+  </nav>
+
+  <!-- Canvas -->
+  <div id="canvas-wrap">
+    <canvas id="mainCanvas"></canvas>
+    <canvas id="fxCanvas"></canvas>
+  </div>
+
+  <!-- Tool Panel -->
+  <div id="tool-panel">
+
+    <!-- ─ WOOD PANEL ─ -->
+    <div class="sub-panel" id="panel-wood">
+      <div class="panel-section">
+        <h4>木料種類</h4>
+        <div class="btn-grid-2">
+          <div class="t-btn" id="wd-walnut" onclick="setWoodType('walnut')">胡桃木</div>
+          <div class="t-btn" id="wd-oak" onclick="setWoodType('oak')">橡木</div>
+          <div class="t-btn" id="wd-cherry" onclick="setWoodType('cherry')">櫻桃木</div>
+          <div class="t-btn" id="wd-ebony" onclick="setWoodType('ebony')">烏木</div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h4>木紋肌理</h4>
+        <div class="btn-grid">
+          <div class="t-btn" id="wd-fibers" onclick="setGrainType('fibers')">🪵 縱向纖維紋</div>
+          <div class="t-btn" id="wd-cross" onclick="setGrainType('cross')">⭕ 橫切年輪</div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h4>雕刻刀具</h4>
+        <div class="btn-grid">
+          <div class="t-btn" id="wd-gouge" onclick="setWoodTool('gouge')">🛶 U型圓口刀</div>
+          <div class="t-btn" id="wd-splinter" onclick="setWoodTool('splinter')">💥 斜向劈裂刀</div>
+          <div class="t-btn" id="wd-etch" onclick="setWoodTool('etch')">⛏️ 微細刻痕</div>
+          <div class="t-btn" id="wd-scraper" onclick="setWoodTool('scraper')">🔧 平刃刮刀</div>
+        </div>
+      </div>
+      <div class="slider-wrap panel-section">
+        <label>下刀壓力 <span id="wd-power-val">1.2</span></label>
+        <input type="range" id="wd-power" min="0.5" max="3.0" step="0.1" value="1.2"
+               oninput="document.getElementById('wd-power-val').textContent=this.value">
+      </div>
+      <button class="clear-btn" onclick="clearCanvas()">重置木料</button>
+    </div>
+
+    <!-- ─ METAL PANEL ─ -->
+    <div class="sub-panel" id="panel-metal">
+      <div class="panel-section">
+        <h4>金屬材質</h4>
+        <div class="btn-grid-2">
+          <div class="t-btn" id="mt-gold" onclick="setMetalType('gold')">黃金板</div>
+          <div class="t-btn" id="mt-copper" onclick="setMetalType('copper')">紅銅板</div>
+          <div class="t-btn" id="mt-titanium" onclick="setMetalType('titanium')">鈦金屬</div>
+          <div class="t-btn" id="mt-steel" onclick="setMetalType('steel')">不鏽鋼</div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h4>操作工法</h4>
+        <div class="btn-grid">
+          <div class="t-btn" id="mt-forge" onclick="setMetalMode('forge')">🔨 緞打 (鎚紋)</div>
+          <div class="t-btn" id="mt-heat" onclick="setMetalMode('heat')">🔥 炙燒 (白熾)</div>
+        </div>
+      </div>
+      <div class="slider-wrap panel-section">
+        <label>能量輸出 <span id="mt-power-val">1.2</span></label>
+        <input type="range" id="mt-power" min="0.5" max="3.0" step="0.1" value="1.2"
+               oninput="document.getElementById('mt-power-val').textContent=this.value">
+      </div>
+      <button class="clear-btn" onclick="clearCanvas()">重置金屬板</button>
+    </div>
+
+    <!-- ─ TEXTURE BRUSH PANEL ─ -->
+    <div class="sub-panel" id="panel-marble">
+      <div class="panel-section">
+        <h4>異材質種類</h4>
+        <div class="btn-grid">
+          <div class="t-btn" id="tx-branch"  onclick="setTextureBrush('branch')">🖌️ 水墨枝條 (延伸互動)</div>
+          <div class="t-btn" id="tx-steel"   onclick="setTextureBrush('steel')">🔩 鋼刷 (平行刮痕)</div>
+          <div class="t-btn" id="tx-sponge"  onclick="setTextureBrush('sponge')">🧽 海綿 (多孔柔印)</div>
+          <div class="t-btn" id="tx-sand"    onclick="setTextureBrush('sand')">🏖️ 細砂 (顆粒散佈)</div>
+          <div class="t-btn" id="tx-clay"    onclick="setTextureBrush('clay')">🫙 黏土 (一坨堆疊)</div>
+          <div class="t-btn" id="tx-rock"    onclick="setTextureBrush('rock')">🪨 岩石 (稜角切面)</div>
+          <div class="t-btn" id="tx-crack"   onclick="setTextureBrush('crack')">💢 裂痕 (岩裂分叉)</div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h4>顏料色彩</h4>
+        <div class="color-swatches">
+          <div class="swatch selected" style="background:#4f7ec2" onclick="setBrushColor('#4f7ec2',this)"></div>
+          <div class="swatch" style="background:#d94f4f" onclick="setBrushColor('#d94f4f',this)"></div>
+          <div class="swatch" style="background:#3ea87a" onclick="setBrushColor('#3ea87a',this)"></div>
+          <div class="swatch" style="background:#d4a135" onclick="setBrushColor('#d4a135',this)"></div>
+          <div class="swatch" style="background:#9c5cc8" onclick="setBrushColor('#9c5cc8',this)"></div>
+          <div class="swatch" style="background:#d44a8e" onclick="setBrushColor('#d44a8e',this)"></div>
+          <div class="swatch" style="background:#e8e0d0" onclick="setBrushColor('#e8e0d0',this)"></div>
+          <div class="swatch" style="background:#2a2a2a" onclick="setBrushColor('#2a2a2a',this)"></div>
+        </div>
+        <input type="color" id="tx-custom" value="#4f7ec2"
+               oninput="setBrushColor(this.value,null)"
+               style="width:100%;height:28px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:transparent;margin-top:8px">
+      </div>
+      <div class="slider-wrap panel-section">
+        <label>筆觸大小 <span id="tx-size-val">18</span></label>
+        <input type="range" id="tx-size" min="4" max="60" step="1" value="18"
+               oninput="document.getElementById('tx-size-val').textContent=this.value">
+      </div>
+      <div class="slider-wrap panel-section">
+        <label>強度 <span id="tx-int-val">0.60</span></label>
+        <input type="range" id="tx-intensity" min="0.05" max="1.0" step="0.05" value="0.60"
+               oninput="document.getElementById('tx-int-val').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div class="panel-section">
+        <h4>畫布底色</h4>
+        <div class="btn-grid-2">
+          <div class="t-btn" id="mb-white" onclick="setCanvasBg('white')">白底</div>
+          <div class="t-btn" id="mb-black" onclick="setCanvasBg('black')">黑底</div>
+          <div class="t-btn" id="mb-kraft" onclick="setCanvasBg('kraft')">牛皮紙</div>
+          <div class="t-btn" id="mb-slate" onclick="setCanvasBg('slate')">石板灰</div>
+        </div>
+      </div>
+      <button class="clear-btn" onclick="clearCanvas()">清空畫布</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let currentMaterial = 'wood';
+
+// Canvas refs
+let mainC, mainCtx, fxC, fxCtx;
+let W, H;
+
+// Input
+let isPressed = false;
+let ptr = { x: -200, y: -200 };
+let lastPtr = { x: -200, y: -200 };
+
+// Particles
+let particles = [];
+
+// ── WOOD STATE ──
+const woodProfiles = {
+  walnut:  { base:'#201008', grain:'#0e0602', light:'#9a7248', shadow:'#040201' },
+  oak:     { base:'#9a7040', grain:'#604820', light:'#dcc090', shadow:'#382010' },
+  cherry:  { base:'#501006', grain:'#300800', light:'#a04828', shadow:'#160200' },
+  ebony:   { base:'#0c0c0c', grain:'#060606', light:'#303030', shadow:'#020202' },
+};
+let woodType   = 'walnut';
+let woodTool   = 'gouge';
+let grainType  = 'fibers';
+
+// ── METAL STATE ──
+const metalProfiles = {
+  gold:     { base:'#4d3d0a', highlight:'#c5a021', glow:'#ffcc33' },
+  copper:   { base:'#4b2518', highlight:'#8e4a34', glow:'#ff6600' },
+  titanium: { base:'#2a2a2a', highlight:'#555',    glow:'#4422ff' },
+  steel:    { base:'#1a1a1a', highlight:'#444',    glow:'#ffffff' },
+};
+let metalType = 'gold';
+let metalMode = 'forge';
+let heatTime  = 0;
+
+// ── TEXTURE BRUSH STATE ──
+let textureBrush = 'branch';
+let brushColor   = { r:79, g:126, b:194 };
+let canvasBg     = 'white';
+const bgColors   = { white:'#ffffff', black:'#111111', kraft:'#c8a96e', slate:'#4a5060' };
+
+// Branch stroke interaction
+let branchStrokeEnd  = null;   // endpoint of last released stroke
+let branchStrokeAngle = 0;     // angle of last released stroke
+let isNewStroke      = false;  // flag: first segment of a new press
+let branchStrokeLen  = 0;      // cumulative length for width taper
+const BRANCH_SNAP    = 90;     // px – snap/connect distance
+
+function getRGB()  { return `${brushColor.r},${brushColor.g},${brushColor.b}`; }
+function getRGBd(dr,dg,db) {
+  return `rgb(${Math.max(0,Math.min(255,brushColor.r+dr))},`+
+             `${Math.max(0,Math.min(255,brushColor.g+dg))},`+
+             `${Math.max(0,Math.min(255,brushColor.b+db))})`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+function boot() {
+  mainC   = document.getElementById('mainCanvas');
+  mainCtx = mainC.getContext('2d', { willReadFrequently: true });
+  fxC     = document.getElementById('fxCanvas');
+  fxCtx   = fxC.getContext('2d');
+  resize();
+  window.addEventListener('resize', resize);
+  bindInput();
+  switchMaterial('wood');
+  requestAnimationFrame(loop);
+}
+
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  mainC.width = fxC.width = W;
+  mainC.height = fxC.height = H;
+  clearCanvas();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MATERIAL SWITCHING
+// ═══════════════════════════════════════════════════════════
+function switchMaterial(mat) {
+  currentMaterial = mat;
+
+  // tabs
+  document.querySelectorAll('.mat-tab').forEach(t => {
+    t.className = 'mat-tab';
+    if (t.dataset.mat === mat) t.classList.add('active-' + mat);
+  });
+
+  // sub panels
+  document.querySelectorAll('.sub-panel').forEach(p => p.classList.remove('visible'));
+  document.getElementById('panel-' + mat).classList.add('visible');
+
+  // title
+  const titles = { wood:'木雕工坊', metal:'金屬鍛造', marble:'異材質筆刷' };
+  document.getElementById('tab-title').textContent = titles[mat];
+
+  particles = [];
+  clearCanvas();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CLEAR / TEXTURE
+// ═══════════════════════════════════════════════════════════
+function clearCanvas() {
+  mainCtx.clearRect(0, 0, W, H);
+  fxCtx.clearRect(0, 0, W, H);
+  if (currentMaterial === 'wood')   applyWoodTexture();
+  else if (currentMaterial === 'metal') applyMetalTexture();
+  else applyMarbleCanvas();
+}
+
+function applyWoodTexture() {
+  const p = woodProfiles[woodType];
+
+  // Base fill with subtle vertical gradient for planks
+  const baseGrad = mainCtx.createLinearGradient(0, 0, 0, H);
+  baseGrad.addColorStop(0,   p.base);
+  baseGrad.addColorStop(0.4, shiftBrightness(p.base, 1.15));
+  baseGrad.addColorStop(1,   p.base);
+  mainCtx.fillStyle = baseGrad;
+  mainCtx.fillRect(0, 0, W, H);
+
+  mainCtx.save();
+  if (grainType === 'fibers') {
+    // Fine grain lines
+    for (let i = 0; i < H; i += 1.2 + Math.random()*0.8) {
+      mainCtx.globalAlpha = 0.10 + Math.random()*0.08;
+      mainCtx.strokeStyle = Math.random() > 0.55 ? p.grain : p.light;
+      mainCtx.lineWidth = Math.random() > 0.8 ? 1.2 : 0.5;
+      mainCtx.beginPath();
+      mainCtx.moveTo(0, i);
+      const cx1 = W*0.25 + (Math.random()-0.5)*40;
+      const cy1 = i + (Math.random()-0.5)*10;
+      const cx2 = W*0.75 + (Math.random()-0.5)*40;
+      const cy2 = i + (Math.random()-0.5)*10;
+      mainCtx.bezierCurveTo(cx1,cy1, cx2,cy2, W, i+(Math.random()-0.5)*4);
+      mainCtx.stroke();
+    }
+    // Occasional wider grain band
+    for (let i = 0; i < H; i += 60 + Math.random()*80) {
+      mainCtx.globalAlpha = 0.06;
+      mainCtx.strokeStyle = p.grain;
+      mainCtx.lineWidth = 3 + Math.random()*4;
+      mainCtx.beginPath();
+      mainCtx.moveTo(0, i);
+      mainCtx.bezierCurveTo(W*0.3,i+(Math.random()-0.5)*20, W*0.7,i+(Math.random()-0.5)*20, W,i+(Math.random()-0.5)*10);
+      mainCtx.stroke();
+    }
+  } else {
+    const cx = W*0.5 + (Math.random()-0.5)*80;
+    const cy = H*0.45 + (Math.random()-0.5)*60;
+    for (let r = 15; r < Math.max(W,H)*1.2; r += 10 + Math.random()*12) {
+      mainCtx.globalAlpha = 0.07 + Math.random()*0.07;
+      mainCtx.strokeStyle = Math.random() > 0.5 ? p.grain : p.light;
+      mainCtx.lineWidth = Math.random() > 0.7 ? 1.5 : 0.7;
+      mainCtx.beginPath();
+      mainCtx.ellipse(cx, cy, r, r*(0.55+Math.random()*0.1), 0.05+Math.random()*0.1, 0, Math.PI*2);
+      mainCtx.stroke();
+    }
+  }
+  mainCtx.restore();
+  mainCtx.globalAlpha = 1;
+}
+
+function shiftBrightness(hex, factor) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const clamp = v => Math.min(255, Math.max(0, Math.round(v*factor)));
+  return `rgb(${clamp(r)},${clamp(g)},${clamp(b)})`;
+}
+
+function applyMetalTexture() {
+  const m = metalProfiles[metalType];
+  const grad = mainCtx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, m.base);
+  grad.addColorStop(0.45, m.highlight);
+  grad.addColorStop(1, m.base);
+  mainCtx.fillStyle = grad;
+  mainCtx.fillRect(0, 0, W, H);
+
+  mainCtx.globalAlpha = 0.04;
+  for (let i = 0; i < H; i += 2) {
+    mainCtx.fillStyle = i % 4 === 0 ? '#fff' : '#000';
+    mainCtx.fillRect(0, i, W, 1);
+  }
+  mainCtx.globalAlpha = 1;
+}
+
+function applyMarbleCanvas() {
+  mainCtx.fillStyle = bgColors[canvasBg];
+  mainCtx.fillRect(0, 0, W, H);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  WOOD DRAWING — 3D relief system (light-source aware)
+// ═══════════════════════════════════════════════════════════
+function drawWood(p1, p2, power) {
+  const dist = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+  if (dist < 0.3) return;
+
+  const angle = Math.atan2(p2.y-p1.y, p2.x-p1.x);
+  const p = woodProfiles[woodType];
+
+  // ── Light source flipped to lower-right ──
+  const lx = 0.707, ly = 0.707;
+
+  // Perpendicular to the stroke direction (rotated 90° CCW)
+  const perpX =  Math.sin(angle);
+  const perpY = -Math.cos(angle);
+
+  // Which perpendicular side faces the light? (dot product)
+  const dot = lx * perpX + ly * perpY;
+  const hiDir = dot >= 0 ? 1 : -1;   // +1 = perpDir faces light
+  const shDir = -hiDir;
+
+  // ── Per-tool groove profiles ──
+  let gW, centerA, hiA, shA, hiW, shW, roughness;
+  if (woodTool === 'gouge') {
+    gW = 20 * power; centerA = 0.45; hiA = 0.85; shA = 0.35;
+    hiW = gW * 0.20; shW = gW * 0.18; roughness = 0;
+  } else if (woodTool === 'splinter') {
+    gW = (16 + Math.random()*8) * power; centerA = 0.38; hiA = 0.72; shA = 0.30;
+    hiW = gW * 0.22; shW = gW * 0.16; roughness = 2.5;
+  } else if (woodTool === 'etch') {
+    gW = 4 * power; centerA = 0.55; hiA = 0.80; shA = 0.38;
+    hiW = gW * 0.35; shW = gW * 0.28; roughness = 0;
+  } else { // scraper
+    gW = 28 * power; centerA = 0.20; hiA = 0.45; shA = 0.15;
+    hiW = gW * 0.12; shW = gW * 0.10; roughness = 0;
+  }
+  const halfW = gW * 0.5;
+
+  // ── Helper: draw one offset parallel stroke ──
+  function oStroke(ox, oy, lineW, color, alpha, comp) {
+    const rx = roughness ? (Math.random()-0.5)*roughness : 0;
+    const ry = roughness ? (Math.random()-0.5)*roughness : 0;
+    mainCtx.save();
+    mainCtx.globalCompositeOperation = comp;
+    mainCtx.globalAlpha = alpha;
+    mainCtx.strokeStyle = color;
+    mainCtx.lineWidth = lineW;
+    mainCtx.lineCap = 'round';
+    mainCtx.lineJoin = 'round';
+    mainCtx.beginPath();
+    mainCtx.moveTo(p1.x + ox + rx, p1.y + oy + ry);
+    mainCtx.lineTo(p2.x + ox + rx, p2.y + oy + ry);
+    mainCtx.stroke();
+    mainCtx.restore();
+  }
+
+  // ─── LAYER 1: Broad groove body (widens affected area) ───
+  oStroke(0, 0, gW, p.shadow, centerA * 0.14, 'multiply');
+
+  // ─── LAYER 2: Deep groove core ───
+  oStroke(0, 0, gW * 0.45, p.shadow, centerA * 0.55, 'multiply');
+
+  // ─── LAYER 3: Groove floor (darkest center line) ───
+  if (woodTool !== 'scraper') {
+    oStroke(0, 0, gW * 0.12, p.shadow, 0.25, 'multiply');
+  }
+
+  // ─── LAYER 4: Shadow wall (shDir side — away from light) ───
+  const shOff = halfW * 0.52 * shDir;
+  oStroke(perpX * shOff, perpY * shOff, shW, p.shadow, shA * 0.65, 'multiply');
+
+  // ─── LAYER 5: Transition zone ───
+  const midOff = halfW * 0.35 * hiDir;
+  oStroke(perpX * midOff, perpY * midOff, gW * 0.28, p.light, 0.18, 'screen');
+
+  // ─── LAYER 6: Highlight wall — raised fiber catching light ───
+  const hiOff = halfW * 0.68 * hiDir;
+  oStroke(perpX * hiOff, perpY * hiOff, hiW, p.light, hiA * 0.72, 'screen');
+
+  // ─── LAYER 7: Bright rim — fresh-cut wood edge ───
+  const rimOff = halfW * 0.85 * hiDir;
+  oStroke(perpX * rimOff, perpY * rimOff, hiW * 0.38, '#dfc090', hiA * 0.55, 'screen');
+
+  // ─── LAYER 8: Specular peak (gouge / splinter only) ───
+  if (woodTool === 'gouge' || woodTool === 'splinter') {
+    const specOff = halfW * 0.94 * hiDir;
+    oStroke(perpX * specOff, perpY * specOff, hiW * 0.14, '#ffffff', 0.18 * power, 'screen');
+  }
+
+  // ─── Wood chips / splinter debris ───
+  if (dist > 3 && Math.random() > 0.45) {
+    particles.push(new Chip(p2.x, p2.y, p.light));
+    if (woodTool === 'splinter' && Math.random() > 0.6) {
+      particles.push(new Chip(p2.x + (Math.random()-0.5)*8, p2.y + (Math.random()-0.5)*8, p.grain));
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  METAL DRAWING
+// ═══════════════════════════════════════════════════════════
+function drawMetal(x, y, power) {
+  const m = metalProfiles[metalType];
+
+  if (metalMode === 'forge') {
+    const size = (14 + Math.random()*18) * power;
+    const sides = Math.floor(Math.random()*3) + 5;
+    const rot = Math.random() * Math.PI*2;
+
+    mainCtx.save();
+    mainCtx.translate(x, y); mainCtx.rotate(rot);
+    mainCtx.globalCompositeOperation = 'overlay';
+
+    const facetGrad = mainCtx.createLinearGradient(-size,-size, size,size);
+    facetGrad.addColorStop(0, `rgba(0,0,0,${0.3*power})`);
+    facetGrad.addColorStop(1, `rgba(255,255,255,${0.2*power})`);
+    mainCtx.fillStyle = facetGrad;
+    polyPath(mainCtx, 0, 0, size, sides);
+    mainCtx.fill();
+
+    mainCtx.strokeStyle = `rgba(255,255,255,${0.15*power})`;
+    mainCtx.lineWidth = 1;
+    polyPath(mainCtx, 1, 1, size, sides);
+    mainCtx.stroke();
+    mainCtx.restore();
+
+    if (Math.random() > 0.45) {
+      for (let i = 0; i < 4; i++) particles.push(new Spark(x, y, '#ffaa00'));
+    }
+
+  } else {
+    heatTime += 0.05;
+    const size = (24 + Math.sin(Date.now()*0.01)*10) * power;
+
+    mainCtx.save();
+    mainCtx.globalCompositeOperation = 'overlay';
+
+    let hc;
+    if (metalType === 'titanium') hc = ['#4422ff','#aa44ff','#ffcc00'][Math.floor(Math.random()*3)];
+    else if (metalType === 'gold') hc = ['#663300','#aa6600','#ffcc00'][Math.floor(Math.random()*3)];
+    else hc = '#ff4400';
+
+    mainCtx.beginPath();
+    for (let i = 0; i < 12; i++) {
+      const a = (i/12)*Math.PI*2;
+      const r = size*(0.8+Math.random()*0.5);
+      const px = x+Math.cos(a)*r, py = y+Math.sin(a)*r;
+      if (i===0) mainCtx.moveTo(px,py); else mainCtx.lineTo(px,py);
+    }
+    mainCtx.closePath();
+    mainCtx.fillStyle = hc + '18';
+    mainCtx.fill();
+
+    if (heatTime > 1.5) {
+      mainCtx.globalCompositeOperation = 'multiply';
+      mainCtx.fillStyle = 'rgba(0,0,0,0.025)';
+      mainCtx.beginPath(); mainCtx.arc(x, y, size*0.5, 0, Math.PI*2); mainCtx.fill();
+    }
+    mainCtx.restore();
+
+    const gg = fxCtx.createRadialGradient(x,y,0, x,y,size*1.5);
+    if (heatTime > 1.5) {
+      gg.addColorStop(0,'#ffffff'); gg.addColorStop(0.3,'#ffffcc'); gg.addColorStop(1,'transparent');
+      if (Math.random()>0.8) particles.push(new Spark(x,y,'#ffffff'));
+    } else {
+      gg.addColorStop(0,'rgba(255,180,50,0.7)'); gg.addColorStop(1,'transparent');
+    }
+    fxCtx.fillStyle = gg;
+    fxCtx.beginPath(); fxCtx.arc(x,y,size*1.5,0,Math.PI*2); fxCtx.fill();
+
+    if (Math.random()>0.6) particles.push(new Spark(x,y,'#ff9900'));
+  }
+}
+
+function polyPath(ctx, ox, oy, r, sides) {
+  ctx.beginPath();
+  for (let i = 0; i < sides; i++) {
+    const a = (i/sides)*Math.PI*2;
+    const px = ox+Math.cos(a)*r, py = oy+Math.sin(a)*r;
+    if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TEXTURE BRUSHES
+// ═══════════════════════════════════════════════════════════
+function drawBrush(p1, p2) {
+  const size      = parseFloat(document.getElementById('tx-size').value);
+  const intensity = parseFloat(document.getElementById('tx-intensity').value);
+
+  // Branch: on first segment of new stroke, draw auto-connecting twig
+  if (textureBrush === 'branch' && isNewStroke) {
+    isNewStroke = false;
+    if (branchStrokeEnd) {
+      const d = Math.hypot(p1.x - branchStrokeEnd.x, p1.y - branchStrokeEnd.y);
+      if (d > 4 && d < BRANCH_SNAP) {
+        drawBranchTwig(branchStrokeEnd, p1, size * 0.38, intensity, branchStrokeAngle);
+      }
+    }
+  }
+
+  switch(textureBrush) {
+    case 'branch': drawBranch(p1, p2, size, intensity); break;
+    case 'steel':  drawSteel(p1, p2, size, intensity);  break;
+    case 'sponge': drawSponge(p2.x, p2.y, size, intensity); break;
+    case 'sand':   drawSand(p2.x, p2.y, size, intensity);   break;
+    case 'clay':   drawClay(p1, p2, size, intensity);   break;
+    case 'rock':   drawRock(p1, p2, size, intensity);   break;
+    case 'crack':  drawCrack(p1, p2, size, intensity);  break;
+  }
+}
+
+// ── 水墨枝條：水墨筆觸，含第一/二筆延伸互動 ──
+function drawBranch(p1, p2, size, intensity) {
+  const dist  = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+  if (dist < 0.4) return;
+  const angle = Math.atan2(p2.y-p1.y, p2.x-p1.x);
+  const rgb   = getRGB();
+
+  mainCtx.save();
+  mainCtx.lineCap = 'round'; mainCtx.lineJoin = 'round';
+
+  // ── 累積筆畫長度，計算漸細係數 ──
+  branchStrokeLen += dist;
+  const taper = Math.max(0.12, 1.0 - branchStrokeLen / (size * 28));
+  // 自然抖動（模擬手腕壓力變化）
+  const pressureWave = 0.80 + Math.sin(branchStrokeLen * 0.08) * 0.12 + Math.random() * 0.08;
+  const strokeW = size * taper * pressureWave;
+
+  // ── 墨水暈染外圍（最寬，極淡）──
+  mainCtx.globalAlpha = intensity * 0.10;
+  mainCtx.strokeStyle = `rgb(${rgb})`;
+  mainCtx.lineWidth   = strokeW * 1.55;
+  mainCtx.filter      = 'blur(2px)';
+  mainCtx.beginPath(); mainCtx.moveTo(p1.x,p1.y); mainCtx.lineTo(p2.x,p2.y); mainCtx.stroke();
+  mainCtx.filter = 'none';
+
+  // ── 主幹（深、粗，跟著 strokeW）──
+  mainCtx.globalAlpha = intensity * 0.90;
+  mainCtx.strokeStyle = getRGBd(-5,-4,-3);
+  mainCtx.lineWidth   = strokeW;
+  mainCtx.beginPath(); mainCtx.moveTo(p1.x,p1.y); mainCtx.lineTo(p2.x,p2.y); mainCtx.stroke();
+
+  // ── 乾筆效果：細白毛邊（模擬筆毛分叉）──
+  for (let k = 0; k < 2; k++) {
+    const offSide = (k===0?1:-1) * strokeW * (0.52 + Math.random()*0.10);
+    const ox = Math.sin(angle)*offSide, oy = -Math.cos(angle)*offSide;
+    mainCtx.globalAlpha = intensity * (0.08 + Math.random()*0.10);
+    mainCtx.strokeStyle = getRGBd(55,48,40);
+    mainCtx.lineWidth   = 0.5 + Math.random()*0.7;
+    const g = mainCtx.createLinearGradient(p1.x+ox,p1.y+oy,p2.x+ox,p2.y+oy);
+    g.addColorStop(0,'transparent');
+    g.addColorStop(0.15,`rgba(${getRGBd(55,48,40).slice(4,-1)},${intensity*0.3})`);
+    g.addColorStop(0.85,`rgba(${getRGBd(55,48,40).slice(4,-1)},${intensity*0.25})`);
+    g.addColorStop(1,'transparent');
+    mainCtx.strokeStyle = g;
+    mainCtx.beginPath(); mainCtx.moveTo(p1.x+ox,p1.y+oy); mainCtx.lineTo(p2.x+ox,p2.y+oy); mainCtx.stroke();
+  }
+
+  // ── 隨機小細枝（機率觸發，細枝比主幹細很多）──
+  if (dist > 10 && Math.random() > 0.78) {
+    const sign = Math.random()>0.5 ? 1 : -1;
+    const tA   = angle + sign*(Math.PI*0.22 + Math.random()*Math.PI*0.18);
+    const tLen = strokeW*(1.2 + Math.random()*2.2);
+    const t    = 0.25 + Math.random()*0.55;
+    const tx   = p1.x+(p2.x-p1.x)*t, ty = p1.y+(p2.y-p1.y)*t;
+    const ex   = tx+Math.cos(tA)*tLen,  ey = ty+Math.sin(tA)*tLen;
+    const cpx  = (tx+ex)/2 + (Math.random()-0.5)*tLen*0.3;
+    const cpy  = (ty+ey)/2 + (Math.random()-0.5)*tLen*0.3;
+    mainCtx.globalAlpha = intensity * 0.72;
+    mainCtx.strokeStyle = `rgb(${rgb})`;
+    mainCtx.lineWidth   = strokeW * (0.18 + Math.random()*0.12);  // 細枝固定細
+    mainCtx.beginPath();
+    mainCtx.moveTo(tx,ty);
+    mainCtx.quadraticCurveTo(cpx,cpy,ex,ey);
+    mainCtx.stroke();
+  }
+
+  mainCtx.restore();
+
+  // 記錄本筆段終點與角度（供下一筆連接用）
+  branchStrokeAngle = angle;
+}
+
+// ── 自動連接細枝（當第二筆起點靠近第一筆終點）──
+function drawBranchTwig(from, to, twigW, intensity, fromAngle) {
+  const dist  = Math.hypot(to.x-from.x, to.y-from.y);
+  const angle = Math.atan2(to.y-from.y, to.x-from.x);
+  // 只有夾角合理的方向才連（避免反向回頭）
+  const angleDiff = Math.abs(((angle - fromAngle + Math.PI*3) % (Math.PI*2)) - Math.PI);
+  if (angleDiff > Math.PI * 0.72) return;
+
+  const rgb = getRGB();
+  mainCtx.save();
+  mainCtx.lineCap = 'round';
+  // 細枝漸層：從 from 漸出，to 漸消
+  const cpx = (from.x+to.x)/2 + (Math.random()-0.5)*dist*0.25;
+  const cpy = (from.y+to.y)/2 + (Math.random()-0.5)*dist*0.25;
+  const g = mainCtx.createLinearGradient(from.x,from.y,to.x,to.y);
+  g.addColorStop(0, `rgba(${rgb},${intensity*0.65})`);
+  g.addColorStop(1, `rgba(${rgb},${intensity*0.25})`);
+  mainCtx.globalAlpha  = 1;
+  mainCtx.strokeStyle  = g;
+  mainCtx.lineWidth    = twigW;
+  mainCtx.beginPath();
+  mainCtx.moveTo(from.x, from.y);
+  mainCtx.quadraticCurveTo(cpx, cpy, to.x, to.y);
+  mainCtx.stroke();
+  mainCtx.restore();
+}
+
+// ── 鋼刷：平行刮痕 ──
+function drawSteel(p1, p2, size, intensity) {
+  const dist    = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+  if (dist < 0.3) return;
+  const angle   = Math.atan2(p2.y-p1.y, p2.x-p1.x);
+  const perpX   = Math.sin(angle), perpY = -Math.cos(angle);
+  const rgb     = getRGB();
+  const nLines  = Math.round(size * 0.9 + 5);
+
+  mainCtx.save();
+  mainCtx.lineCap = 'butt';
+  for (let i = 0; i < nLines; i++) {
+    const t    = (i/(nLines-1)) - 0.5;
+    const off  = t * size * 1.1;
+    const jit  = (Math.random()-0.5)*size*0.12;
+    const ox   = perpX*(off+jit), oy = perpY*(off+jit);
+    if (Math.random() < 0.12) continue; // missing wire
+
+    mainCtx.globalAlpha = intensity * (0.25 + Math.random()*0.55);
+    mainCtx.strokeStyle = `rgb(${rgb})`;
+    mainCtx.lineWidth   = 0.5 + Math.random()*1.0;
+
+    // Occasional line break
+    if (Math.random() > 0.75) {
+      const brk = 0.2 + Math.random()*0.5;
+      mainCtx.beginPath();
+      mainCtx.moveTo(p1.x+ox, p1.y+oy);
+      mainCtx.lineTo(p1.x+ox+(p2.x-p1.x)*brk, p1.y+oy+(p2.y-p1.y)*brk);
+      mainCtx.stroke();
+    } else {
+      mainCtx.beginPath();
+      mainCtx.moveTo(p1.x+ox, p1.y+oy);
+      mainCtx.lineTo(p2.x+ox, p2.y+oy);
+      mainCtx.stroke();
+    }
+  }
+  mainCtx.restore();
+}
+
+// ── 海綿：細膩集中，不過度擴散 ──
+function drawSponge(x, y, size, intensity) {
+  const rgb    = getRGB();
+  const radius = size * 0.65;          // 緊縮半徑
+  const nBlobs = Math.round(radius * 3.5 + 20);
+
+  mainCtx.save();
+  for (let i = 0; i < nBlobs; i++) {
+    // 高斯集中：靠近中心機率遠高於邊緣
+    const r  = radius * Math.pow(Math.random(), 1.4);
+    const a  = Math.random() * Math.PI * 2;
+    const bx = x + Math.cos(a) * r;
+    const by = y + Math.sin(a) * r;
+
+    // 細小孔洞（1~4px）
+    const bw = 0.6 + Math.random() * size * 0.12;
+    const bh = bw * (0.55 + Math.random() * 0.75);
+    const ba = Math.random() * Math.PI;
+
+    mainCtx.globalAlpha = intensity * (0.07 + Math.random() * 0.13);
+    // 中心孔洞稍深，邊緣更透
+    mainCtx.fillStyle   = Math.random() > 0.25
+      ? `rgb(${rgb})`
+      : getRGBd(-25, -20, -15);
+
+    mainCtx.save();
+    mainCtx.translate(bx, by);
+    mainCtx.rotate(ba);
+    mainCtx.beginPath();
+    mainCtx.ellipse(0, 0, bw, bh, 0, 0, Math.PI * 2);
+    mainCtx.fill();
+    mainCtx.restore();
+  }
+
+  // 中心最細緻的暈染（非常輕）
+  const grd = mainCtx.createRadialGradient(x, y, 0, x, y, radius * 0.45);
+  grd.addColorStop(0, `rgba(${rgb},${intensity * 0.07})`);
+  grd.addColorStop(1, `rgba(${rgb},0)`);
+  mainCtx.globalAlpha = 1;
+  mainCtx.fillStyle   = grd;
+  mainCtx.beginPath();
+  mainCtx.arc(x, y, radius * 0.45, 0, Math.PI * 2);
+  mainCtx.fill();
+  mainCtx.restore();
+}
+
+// ── 細砂：顆粒散佈 ──
+function drawSand(x, y, size, intensity) {
+  const rgb   = getRGB();
+  const range = size * 2.2;
+  const nDots = Math.round(range * 2.0 + 12);
+  mainCtx.save();
+  for (let i = 0; i < nDots; i++) {
+    // Box-Muller gaussian spread
+    const u1 = Math.max(1e-9, Math.random()), u2 = Math.random();
+    const rr = Math.min(range, range*0.40*Math.sqrt(-2*Math.log(u1)));
+    const aa = u2*Math.PI*2;
+    const dx = x + Math.cos(aa)*rr, dy = y + Math.sin(aa)*rr;
+    const ds = 0.4 + Math.random()*2.0;
+    mainCtx.globalAlpha = intensity*(0.25 + Math.random()*0.55);
+    mainCtx.fillStyle   = Math.random()>0.15 ? `rgb(${rgb})` : getRGBd(-30,-25,-20);
+    mainCtx.beginPath(); mainCtx.arc(dx, dy, ds, 0, Math.PI*2); mainCtx.fill();
+  }
+  mainCtx.restore();
+}
+
+// ── 岩石：稜角切面，光影強烈 ──
+function drawRock(p1, p2, size, intensity) {
+  const dist = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+  const step = size * 0.55;
+  const steps = Math.max(1, Math.ceil(dist / step));
+  const angle = Math.atan2(p2.y-p1.y, p2.x-p1.x);
+  for (let s = 0; s < steps; s++) {
+    const t = s / steps;
+    placeRockChunk(
+      p1.x+(p2.x-p1.x)*t, p1.y+(p2.y-p1.y)*t,
+      size, intensity, angle
+    );
+  }
+}
+
+function placeRockChunk(x, y, size, intensity, baseAngle) {
+  const rr = brushColor.r, gg = brushColor.g, bb = brushColor.b;
+  const nSides = 5 + Math.floor(Math.random()*4);
+  const rot    = baseAngle + (Math.random()-0.5)*1.2;
+  const r      = size*(0.55 + Math.random()*0.45);
+
+  // Build highly irregular polygon — extreme radius variation + angle jitter
+  const pts = [];
+  for (let i = 0; i < nSides; i++) {
+    const baseA = (i/nSides)*Math.PI*2 + rot;
+    const aJit  = (Math.random()-0.5) * (Math.PI*2/nSides) * 0.55; // angle jitter
+    const a     = baseA + aJit;
+    // Extreme radius variation: some vertices pushed far in or out
+    const ir = r * (0.28 + Math.pow(Math.random(), 0.7) * 1.15);
+    pts.push({ x: x+Math.cos(a)*ir, y: y+Math.sin(a)*ir });
+  }
+
+  mainCtx.save();
+
+  // 1. Drop shadow
+  mainCtx.globalCompositeOperation = 'multiply';
+  mainCtx.globalAlpha = intensity * 0.32;
+  mainCtx.fillStyle   = `rgba(${Math.max(0,rr-80)},${Math.max(0,gg-70)},${Math.max(0,bb-55)},1)`;
+  mainCtx.beginPath();
+  pts.forEach((p,i) => {
+    const sx = p.x+4, sy = p.y+5;
+    i===0 ? mainCtx.moveTo(sx,sy) : mainCtx.lineTo(sx,sy);
+  });
+  mainCtx.closePath(); mainCtx.fill();
+
+  // 2. Main face — linear gradient light(upper-left) → dark(lower-right)
+  mainCtx.globalCompositeOperation = 'source-over';
+  mainCtx.globalAlpha = intensity * 0.88;
+  const faceG = mainCtx.createLinearGradient(x-r*0.8, y-r*0.8, x+r*0.8, y+r*0.8);
+  faceG.addColorStop(0,   `rgb(${Math.min(255,rr+70)},${Math.min(255,gg+65)},${Math.min(255,bb+55)})`);
+  faceG.addColorStop(0.45,`rgb(${rr},${gg},${bb})`);
+  faceG.addColorStop(1,   `rgb(${Math.max(0,rr-75)},${Math.max(0,gg-65)},${Math.max(0,bb-52)})`);
+  mainCtx.fillStyle = faceG;
+  mainCtx.beginPath();
+  pts.forEach((p,i) => i===0 ? mainCtx.moveTo(p.x,p.y) : mainCtx.lineTo(p.x,p.y));
+  mainCtx.closePath(); mainCtx.fill();
+
+  // 3. Sharp edge highlights (lit edges on upper-left facing sides)
+  mainCtx.globalAlpha = intensity * 0.55;
+  for (let i = 0; i < Math.min(2, nSides-1); i++) {
+    const a = pts[i], b = pts[i+1];
+    // Only draw if this edge faces upper-left light
+    const ex = b.x-a.x, ey = b.y-a.y;
+    const nx = -ey, ny = ex; // edge normal
+    if (nx*(-0.707) + ny*(-0.707) > 0) {
+      mainCtx.strokeStyle = `rgb(${Math.min(255,rr+100)},${Math.min(255,gg+95)},${Math.min(255,bb+85)})`;
+      mainCtx.lineWidth   = 1.2;
+      mainCtx.beginPath(); mainCtx.moveTo(a.x,a.y); mainCtx.lineTo(b.x,b.y); mainCtx.stroke();
+    }
+  }
+
+  // 4. Dark edge shadows (lower-right facing sides)
+  mainCtx.globalAlpha = intensity * 0.45;
+  for (let i = Math.floor(nSides/2); i < nSides; i++) {
+    const a = pts[i], b = pts[(i+1)%nSides];
+    const ex = b.x-a.x, ey = b.y-a.y;
+    const nx = -ey, ny = ex;
+    if (nx*0.707 + ny*0.707 > 0.2) {
+      mainCtx.strokeStyle = `rgb(${Math.max(0,rr-90)},${Math.max(0,gg-80)},${Math.max(0,bb-65)})`;
+      mainCtx.lineWidth   = 1.5;
+      mainCtx.beginPath(); mainCtx.moveTo(a.x,a.y); mainCtx.lineTo(b.x,b.y); mainCtx.stroke();
+    }
+  }
+  mainCtx.restore();
+}
+
+// ── 裂痕：岩裂分叉，陰影帶狀 ──
+function drawCrack(p1, p2, size, intensity) {
+  const dist  = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+  if (dist < 0.4) return;
+  const angle = Math.atan2(p2.y-p1.y, p2.x-p1.x);
+  const perpX = Math.sin(angle), perpY = -Math.cos(angle);
+  const rgb   = getRGB();
+
+  // Jittered crack path (zigzag feel)
+  const jAmt  = size * 0.18;
+  const jx    = (Math.random()-0.5)*jAmt, jy = (Math.random()-0.5)*jAmt;
+  const mid   = { x:(p1.x+p2.x)/2+jx, y:(p1.y+p2.y)/2+jy };
+
+  mainCtx.save();
+  mainCtx.lineCap = 'butt'; mainCtx.lineJoin = 'miter';
+
+  // ── Shadow band (wide, multiply) ──
+  mainCtx.globalCompositeOperation = 'multiply';
+  mainCtx.globalAlpha = intensity * 0.38;
+  mainCtx.strokeStyle = getRGBd(-55,-45,-35);
+  mainCtx.lineWidth   = size * 0.55;
+  mainCtx.beginPath(); mainCtx.moveTo(p1.x,p1.y); mainCtx.quadraticCurveTo(mid.x,mid.y,p2.x,p2.y); mainCtx.stroke();
+
+  // ── Main crack line (subtle — shadow band is the star) ──
+  mainCtx.globalCompositeOperation = 'source-over';
+  mainCtx.globalAlpha = intensity * 0.32;
+  mainCtx.strokeStyle = getRGBd(-55,-44,-33);
+  mainCtx.lineWidth   = size * 0.05 + 0.4;
+  mainCtx.beginPath(); mainCtx.moveTo(p1.x,p1.y); mainCtx.quadraticCurveTo(mid.x,mid.y,p2.x,p2.y); mainCtx.stroke();
+
+  // ── Highlight edge (light side, offset) ──
+  const hiOff = size * 0.14;
+  mainCtx.globalAlpha = intensity * 0.55;
+  mainCtx.strokeStyle = getRGBd(55,48,38);
+  mainCtx.lineWidth   = size * 0.06 + 0.4;
+  mainCtx.beginPath();
+  mainCtx.moveTo(p1.x+perpX*hiOff, p1.y+perpY*hiOff);
+  mainCtx.quadraticCurveTo(mid.x+perpX*hiOff, mid.y+perpY*hiOff, p2.x+perpX*hiOff, p2.y+perpY*hiOff);
+  mainCtx.stroke();
+
+  // ── Sub-crack branching (random, thinner) ──
+  if (dist > 12 && Math.random() > 0.72) {
+    const sign   = Math.random()>0.5 ? 1 : -1;
+    const subA   = angle + sign*(Math.PI*0.18 + Math.random()*Math.PI*0.22);
+    const subLen = dist*(0.25 + Math.random()*0.35);
+    const t      = 0.3 + Math.random()*0.45;
+    const sx = p1.x+(p2.x-p1.x)*t+jx*t, sy = p1.y+(p2.y-p1.y)*t+jy*t;
+    const ex = sx+Math.cos(subA)*subLen,  ey = sy+Math.sin(subA)*subLen;
+
+    mainCtx.globalAlpha = intensity * 0.70;
+    mainCtx.strokeStyle = getRGBd(-65,-52,-40);
+    mainCtx.lineWidth   = size * 0.05 + 0.4;
+    mainCtx.beginPath(); mainCtx.moveTo(sx,sy); mainCtx.lineTo(ex,ey); mainCtx.stroke();
+
+    // sub-crack shadow
+    mainCtx.globalCompositeOperation = 'multiply';
+    mainCtx.globalAlpha = intensity * 0.22;
+    mainCtx.strokeStyle = getRGBd(-40,-32,-24);
+    mainCtx.lineWidth   = size * 0.28;
+    mainCtx.beginPath(); mainCtx.moveTo(sx,sy); mainCtx.lineTo(ex,ey); mainCtx.stroke();
+  }
+  mainCtx.restore();
+}
+function drawClay(p1, p2, size, intensity) {
+  const dist  = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+  const step  = size * 0.40;           // blob 間距（讓它們疊在一起）
+  const steps = Math.max(1, Math.ceil(dist / step));
+  const angle = Math.atan2(p2.y-p1.y, p2.x-p1.x);
+  for (let s = 0; s < steps; s++) {
+    const t  = s / steps;
+    const bx = p1.x + (p2.x - p1.x) * t;
+    const by = p1.y + (p2.y - p1.y) * t;
+    placeClayBlob(bx, by, size, intensity, angle);
+  }
+}
+
+function placeClayBlob(x, y, size, intensity, angle) {
+  const r  = size * (0.78 + Math.random() * 0.28);
+  const rr = brushColor.r, gg = brushColor.g, bb = brushColor.b;
+
+  mainCtx.save();
+  mainCtx.translate(x, y);
+  mainCtx.rotate(angle);
+  mainCtx.scale(1.22, 0.84);
+
+  // ── 1. 黏稠外圍暗邊（輕、multiply）──
+  mainCtx.globalCompositeOperation = 'multiply';
+  mainCtx.globalAlpha = intensity * 0.20;
+  const edgeGrad = mainCtx.createRadialGradient(0, 0, r * 0.60, 0, 0, r * 1.15);
+  edgeGrad.addColorStop(0, `rgba(0,0,0,0)`);
+  edgeGrad.addColorStop(1, `rgba(${Math.max(0,rr-35)},${Math.max(0,gg-28)},${Math.max(0,bb-22)},0.8)`);
+  mainCtx.fillStyle = edgeGrad;
+  mainCtx.beginPath(); mainCtx.arc(0, 0, r * 1.15, 0, Math.PI * 2); mainCtx.fill();
+
+  // ── 2. 黏土主體（平面感漸層，中心和邊緣對比小）──
+  mainCtx.globalCompositeOperation = 'source-over';
+  mainCtx.globalAlpha = intensity * 0.88;
+  const bodyGrad = mainCtx.createRadialGradient(-r*0.18, -r*0.18, r*0.05, 0, 0, r);
+  bodyGrad.addColorStop(0,    `rgba(${Math.min(255,rr+22)},${Math.min(255,gg+18)},${Math.min(255,bb+14)},1)`);
+  bodyGrad.addColorStop(0.55, `rgba(${rr},${gg},${bb},1)`);
+  bodyGrad.addColorStop(0.88, `rgba(${Math.max(0,rr-18)},${Math.max(0,gg-14)},${Math.max(0,bb-10)},1)`);
+  bodyGrad.addColorStop(1,    `rgba(${Math.max(0,rr-30)},${Math.max(0,gg-24)},${Math.max(0,bb-18)},0)`);
+  mainCtx.fillStyle = bodyGrad;
+  mainCtx.beginPath(); mainCtx.arc(0, 0, r, 0, Math.PI * 2); mainCtx.fill();
+
+  // ── 3. 黏稠邊緣反光（很淡的 screen 弧線，無明顯高光點）──
+  mainCtx.globalCompositeOperation = 'screen';
+  mainCtx.globalAlpha = intensity * 0.12;
+  mainCtx.strokeStyle = `rgba(${Math.min(255,rr+60)},${Math.min(255,gg+50)},${Math.min(255,bb+40)},1)`;
+  mainCtx.lineWidth   = r * 0.08;
+  mainCtx.beginPath(); mainCtx.arc(0, 0, r * 0.82, Math.PI * 0.85, Math.PI * 1.75); mainCtx.stroke();
+
+  mainCtx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PARTICLES
+// ═══════════════════════════════════════════════════════════
+class Chip {
+  constructor(x,y,c) {
+    this.x=x; this.y=y;
+    const a=Math.random()*Math.PI*2, s=Math.random()*3+1;
+    this.vx=Math.cos(a)*s; this.vy=Math.sin(a)*s;
+    this.life=1; this.decay=0.055; this.color=c;
+    this.w=Math.random()*7+2;
+  }
+  update() { this.x+=this.vx; this.y+=this.vy; this.vy+=0.25; this.life-=this.decay; }
+  draw() {
+    fxCtx.save(); fxCtx.globalAlpha=this.life;
+    fxCtx.fillStyle=this.color;
+    fxCtx.fillRect(this.x,this.y,this.w,1.5);
+    fxCtx.restore();
+  }
+}
+
+class Spark {
+  constructor(x,y,c) {
+    this.x=x; this.y=y;
+    const a=Math.random()*Math.PI*2, s=Math.random()*8+2;
+    this.vx=Math.cos(a)*s; this.vy=Math.sin(a)*s;
+    this.life=1; this.decay=Math.random()*0.05+0.02; this.color=c;
+    this.size=Math.random()*2.5+0.5;
+  }
+  update() { this.x+=this.vx; this.y+=this.vy; this.vy+=0.2; this.life-=this.decay; }
+  draw() {
+    fxCtx.save(); fxCtx.globalAlpha=this.life; fxCtx.fillStyle=this.color;
+    fxCtx.beginPath(); fxCtx.arc(this.x,this.y,this.size,0,Math.PI*2); fxCtx.fill();
+    fxCtx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MAIN LOOP
+// ═══════════════════════════════════════════════════════════
+function loop() {
+  fxCtx.clearRect(0, 0, W, H);
+
+  if (currentMaterial === 'wood' && isPressed) {
+    const d = Math.hypot(ptr.x-lastPtr.x, ptr.y-lastPtr.y);
+    if (d > 0.5) {
+      const power = parseFloat(document.getElementById('wd-power').value);
+      drawWood(lastPtr, ptr, power);
+      lastPtr = { ...ptr };
+    }
+  }
+
+  if (currentMaterial === 'metal') {
+    if (isPressed) {
+      const power = parseFloat(document.getElementById('mt-power').value);
+      drawMetal(ptr.x, ptr.y, power);
+    } else {
+      heatTime = 0;
+    }
+  }
+
+  if (currentMaterial === 'marble' && isPressed) {
+    const d = Math.hypot(ptr.x-lastPtr.x, ptr.y-lastPtr.y);
+    const minMove = (textureBrush==='sponge'||textureBrush==='sand') ? 0.1 : 0.8;
+    if (d > minMove) {
+      drawBrush(lastPtr, ptr);
+      lastPtr = { ...ptr };
+    }
+  }
+
+  // Cursor
+  drawCursor();
+
+  // Particles
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => { p.update(); p.draw(); });
+
+  requestAnimationFrame(loop);
+}
+
+function drawCursor() {
+  if (ptr.x < 0) return;
+  fxCtx.save();
+  fxCtx.translate(ptr.x, ptr.y);
+
+  if (currentMaterial === 'wood') {
+    fxCtx.rotate(-Math.PI/4);
+    const cw = woodTool === 'gouge' ? 4 : woodTool === 'etch' ? 1.5 : woodTool === 'scraper' ? 8 : 6;
+    fxCtx.shadowBlur = 6; fxCtx.shadowColor = 'rgba(210,160,100,0.5)';
+    fxCtx.fillStyle = '#d2a06a';
+    fxCtx.fillRect(-cw/2, -18, cw, 36);
+    fxCtx.fillStyle = '#fff';
+    fxCtx.fillRect(-cw/2, -18, cw, 2);
+
+  } else if (currentMaterial === 'metal') {
+    const r = metalMode === 'forge' ? 10 : 5;
+    fxCtx.shadowBlur = 20; fxCtx.shadowColor = metalProfiles[metalType].glow;
+    fxCtx.fillStyle = '#fff';
+    fxCtx.beginPath(); fxCtx.arc(0,0,r,0,Math.PI*2); fxCtx.fill();
+
+  } else {
+    // Texture brush cursor: circle preview
+    const size = parseFloat(document.getElementById('tx-size')?.value || 18);
+    const rgb  = getRGB();
+    fxCtx.strokeStyle = `rgb(${rgb})`;
+    fxCtx.lineWidth = 1.2; fxCtx.globalAlpha = 0.7;
+    fxCtx.beginPath(); fxCtx.arc(0, 0, size*0.6, 0, Math.PI*2); fxCtx.stroke();
+    fxCtx.globalAlpha = 0.3; fxCtx.fillStyle = `rgba(${rgb},0.15)`;
+    fxCtx.fill();
+  }
+  fxCtx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════════════════
+function bindInput() {
+  const upd = (e) => {
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    ptr.x = x; ptr.y = y;
+  };
+  window.addEventListener('mousedown', e => {
+    isPressed = true; upd(e); lastPtr = {...ptr};
+    if (currentMaterial === 'marble' && textureBrush === 'branch') {
+      isNewStroke = true;
+      branchStrokeLen = 0;
+    }
+  });
+  window.addEventListener('mousemove', upd);
+  window.addEventListener('mouseup', () => {
+    if (currentMaterial === 'marble' && textureBrush === 'branch') {
+      branchStrokeEnd   = {...ptr};
+      branchStrokeAngle = Math.atan2(ptr.y - lastPtr.y, ptr.x - lastPtr.x);
+    }
+    isPressed = false;
+  });
+  window.addEventListener('touchstart', e => {
+    isPressed = true; upd(e); lastPtr = {...ptr};
+    if (currentMaterial === 'marble' && textureBrush === 'branch') {
+      isNewStroke = true;
+      branchStrokeLen = 0;
+    }
+  }, {passive:false});
+  window.addEventListener('touchmove', e => { upd(e); if(isPressed) e.preventDefault(); }, {passive:false});
+  window.addEventListener('touchend', () => {
+    if (currentMaterial === 'marble' && textureBrush === 'branch') {
+      branchStrokeEnd   = {...ptr};
+      branchStrokeAngle = Math.atan2(ptr.y - lastPtr.y, ptr.x - lastPtr.x);
+    }
+    isPressed = false;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CONTROL SETTERS
+// ═══════════════════════════════════════════════════════════
+function setWoodType(t) {
+  woodType = t;
+  document.querySelectorAll('[id^="wd-"]').forEach(b => {
+    if (b.tagName !== 'INPUT') b.classList.remove('on-wood');
+  });
+  const el = document.getElementById('wd-' + t);
+  if (el) el.classList.add('on-wood');
+  clearCanvas();
+}
+
+function setGrainType(g) {
+  grainType = g;
+  ['fibers','cross'].forEach(k => document.getElementById('wd-'+k).classList.remove('on-wood'));
+  document.getElementById('wd-'+g).classList.add('on-wood');
+  clearCanvas();
+}
+
+function setWoodTool(t) {
+  woodTool = t;
+  ['gouge','splinter','etch','scraper'].forEach(k => document.getElementById('wd-'+k).classList.remove('on-wood'));
+  document.getElementById('wd-'+t).classList.add('on-wood');
+}
+
+function setMetalType(t) {
+  metalType = t;
+  ['gold','copper','titanium','steel'].forEach(k => document.getElementById('mt-'+k).classList.remove('on-metal'));
+  document.getElementById('mt-'+t).classList.add('on-metal');
+  clearCanvas();
+}
+
+function setMetalMode(m) {
+  metalMode = m;
+  ['forge','heat'].forEach(k => document.getElementById('mt-'+k).classList.remove('on-metal'));
+  document.getElementById('mt-'+m).classList.add('on-metal');
+}
+
+function hexToRgb(h) {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h);
+  return r ? { r:parseInt(r[1],16), g:parseInt(r[2],16), b:parseInt(r[3],16) } : null;
+}
+
+function setTextureBrush(t) {
+  textureBrush = t;
+  ['branch','steel','sponge','sand','clay','rock','crack'].forEach(k =>
+    document.getElementById('tx-'+k).classList.remove('on-marble'));
+  document.getElementById('tx-'+t).classList.add('on-marble');
+  branchStrokeEnd = null; // reset branch connection on switch
+}
+
+function setBrushColor(hex, el) {
+  const rgb = hexToRgb(hex);
+  if (rgb) brushColor = rgb;
+  document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+}
+
+function setCanvasBg(bg) {
+  canvasBg = bg;
+  ['white','black','kraft','slate'].forEach(k =>
+    document.getElementById('mb-'+k).classList.remove('on-marble'));
+  document.getElementById('mb-'+bg).classList.add('on-marble');
+  clearCanvas();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STARTUP DEFAULTS
+// ═══════════════════════════════════════════════════════════
+function setDefaults() {
+  document.getElementById('wd-walnut').classList.add('on-wood');
+  document.getElementById('wd-fibers').classList.add('on-wood');
+  document.getElementById('wd-gouge').classList.add('on-wood');
+  document.getElementById('mt-gold').classList.add('on-metal');
+  document.getElementById('mt-forge').classList.add('on-metal');
+  document.getElementById('tx-branch').classList.add('on-marble');
+  document.getElementById('mb-white').classList.add('on-marble');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INTRO
+// ═══════════════════════════════════════════════════════════
+document.getElementById('startAll').onclick = async () => {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try { await DeviceOrientationEvent.requestPermission(); } catch(e) {}
+  }
+  document.getElementById('intro').style.transition = 'opacity 0.5s';
+  document.getElementById('intro').style.opacity = '0';
+  setTimeout(() => {
+    document.getElementById('intro').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    setDefaults();
+    boot();
+  }, 500);
+};
+</script>
+</body>
+</html>
