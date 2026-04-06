@@ -339,6 +339,7 @@
       <div class="panel-section">
         <h4>異材質種類</h4>
         <div class="btn-grid">
+          <div class="t-btn" id="tx-marble"  onclick="setTextureBrush('marble')">🔮 彈珠塗鴉 (物理滾動)</div>
           <div class="t-btn" id="tx-branch"  onclick="setTextureBrush('branch')">🖌️ 水墨枝條 (延伸互動)</div>
           <div class="t-btn" id="tx-steel"   onclick="setTextureBrush('steel')">🔩 鋼刷 (平行刮痕)</div>
           <div class="t-btn" id="tx-sponge"  onclick="setTextureBrush('sponge')">🧽 海綿 (多孔柔印)</div>
@@ -430,8 +431,11 @@ let metalMode = 'forge';
 let heatTime  = 0;
 
 // ── TEXTURE BRUSH STATE ──
-let textureBrush = 'branch';
+let textureBrush = 'marble';
 let brushColor   = { r:79, g:126, b:194 };
+let targetColor  = { r:79, g:126, b:194 };   // marble color lerp target
+const colorLerp  = 0.05;
+let marbleObj    = null;   // the physics marble instance
 let canvasBg     = 'white';
 const bgColors   = { white:'#ffffff', black:'#111111', kraft:'#c8a96e', slate:'#4a5060' };
 
@@ -461,6 +465,7 @@ function boot() {
   window.addEventListener('resize', resize);
   bindInput();
   switchMaterial('wood');
+  marbleObj = new MarbleBall();   // pre-init for when user switches to marble tab
   requestAnimationFrame(loop);
 }
 
@@ -493,6 +498,10 @@ function switchMaterial(mat) {
 
   particles = [];
   clearCanvas();
+  if (mat === 'marble') {
+    if (textureBrush === 'marble') marbleObj = new MarbleBall();
+    else marbleObj = null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -779,6 +788,8 @@ function drawBrush(p1, p2) {
   const size      = parseFloat(document.getElementById('tx-size').value);
   const intensity = parseFloat(document.getElementById('tx-intensity').value);
 
+  if (textureBrush === 'marble') return; // marble handled in loop directly
+
   // Branch: on first segment of new stroke, draw auto-connecting twig
   if (textureBrush === 'branch' && isNewStroke) {
     isNewStroke = false;
@@ -798,6 +809,65 @@ function drawBrush(p1, p2) {
     case 'clay':   drawClay(p1, p2, size, intensity);   break;
     case 'rock':   drawRock(p1, p2, size, intensity);   break;
     case 'crack':  drawCrack(p1, p2, size, intensity);  break;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MARBLE BALL (physics rolling)
+// ═══════════════════════════════════════════════════════════
+class MarbleBall {
+  constructor() {
+    this.r  = 13;
+    this.x  = W / 2; this.y  = H / 2;
+    this.vx = 0;     this.vy = 0;
+  }
+  update() {
+    const ox = this.x, oy = this.y;
+
+    // Lerp color
+    brushColor.r += (targetColor.r - brushColor.r) * colorLerp;
+    brushColor.g += (targetColor.g - brushColor.g) * colorLerp;
+    brushColor.b += (targetColor.b - brushColor.b) * colorLerp;
+
+    if (isPressed) {
+      const dx = ptr.x - this.x, dy = ptr.y - this.y;
+      const d  = Math.hypot(dx, dy);
+      if (d > 5) { this.vx += (dx / d) * 0.45; this.vy += (dy / d) * 0.45; }
+    }
+    this.vx *= 0.97; this.vy *= 0.97;
+    this.x  += this.vx; this.y  += this.vy;
+
+    if (this.x < this.r)       { this.x = this.r;       this.vx *= -0.6; }
+    if (this.x > W - this.r)   { this.x = W - this.r;   this.vx *= -0.6; }
+    if (this.y < this.r + 52)  { this.y = this.r + 52;  this.vy *= -0.6; }
+    if (this.y > H - this.r)   { this.y = H - this.r;   this.vy *= -0.6; }
+
+    const dm = Math.hypot(this.x - ox, this.y - oy);
+    if (dm > 0.1) {
+      const op = parseFloat(document.getElementById('tx-intensity').value) * 0.25;
+      const sz = parseFloat(document.getElementById('tx-size').value);
+      mainCtx.beginPath();
+      mainCtx.strokeStyle = `rgba(${Math.round(brushColor.r)},${Math.round(brushColor.g)},${Math.round(brushColor.b)},${op})`;
+      mainCtx.lineWidth   = sz;
+      mainCtx.lineCap     = 'round';
+      mainCtx.lineJoin    = 'round';
+      mainCtx.moveTo(ox, oy); mainCtx.lineTo(this.x, this.y); mainCtx.stroke();
+    }
+  }
+  draw() {
+    fxCtx.save();
+    fxCtx.translate(this.x, this.y);
+    const rgb  = `${Math.round(brushColor.r)},${Math.round(brushColor.g)},${Math.round(brushColor.b)}`;
+    const grad = fxCtx.createRadialGradient(-4, -4, 2, 0, 0, this.r);
+    grad.addColorStop(0, `rgb(${rgb})`);
+    grad.addColorStop(1, `rgb(${Math.round(brushColor.r*0.55)},${Math.round(brushColor.g*0.55)},${Math.round(brushColor.b*0.55)})`);
+    fxCtx.beginPath(); fxCtx.arc(0, 0, this.r, 0, Math.PI * 2);
+    fxCtx.fillStyle   = grad;
+    fxCtx.shadowBlur  = 18; fxCtx.shadowColor = 'rgba(0,0,0,0.3)';
+    fxCtx.fill();
+    fxCtx.beginPath(); fxCtx.arc(-4, -4, 3.5, 0, Math.PI * 2);
+    fxCtx.fillStyle = 'rgba(255,255,255,0.55)'; fxCtx.fill();
+    fxCtx.restore();
   }
 }
 
@@ -1266,12 +1336,17 @@ function loop() {
     }
   }
 
-  if (currentMaterial === 'marble' && isPressed) {
-    const d = Math.hypot(ptr.x-lastPtr.x, ptr.y-lastPtr.y);
-    const minMove = (textureBrush==='sponge'||textureBrush==='sand') ? 0.1 : 0.8;
-    if (d > minMove) {
-      drawBrush(lastPtr, ptr);
-      lastPtr = { ...ptr };
+  if (currentMaterial === 'marble') {
+    if (textureBrush === 'marble' && marbleObj) {
+      marbleObj.update();
+      marbleObj.draw();
+    } else if (textureBrush !== 'marble' && isPressed) {
+      const d = Math.hypot(ptr.x-lastPtr.x, ptr.y-lastPtr.y);
+      const minMove = (textureBrush==='sponge'||textureBrush==='sand') ? 0.1 : 0.8;
+      if (d > minMove) {
+        drawBrush(lastPtr, ptr);
+        lastPtr = { ...ptr };
+      }
     }
   }
 
@@ -1405,15 +1480,20 @@ function hexToRgb(h) {
 
 function setTextureBrush(t) {
   textureBrush = t;
-  ['branch','steel','sponge','sand','clay','rock','crack'].forEach(k =>
+  ['marble','branch','steel','sponge','sand','clay','rock','crack'].forEach(k =>
     document.getElementById('tx-'+k).classList.remove('on-marble'));
   document.getElementById('tx-'+t).classList.add('on-marble');
-  branchStrokeEnd = null; // reset branch connection on switch
+  branchStrokeEnd = null;
+  if (t === 'marble') {
+    marbleObj = new MarbleBall();
+  } else {
+    marbleObj = null;
+  }
 }
 
 function setBrushColor(hex, el) {
   const rgb = hexToRgb(hex);
-  if (rgb) brushColor = rgb;
+  if (rgb) { brushColor = {...rgb}; targetColor = {...rgb}; }
   document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
   if (el) el.classList.add('selected');
 }
@@ -1435,7 +1515,7 @@ function setDefaults() {
   document.getElementById('wd-gouge').classList.add('on-wood');
   document.getElementById('mt-gold').classList.add('on-metal');
   document.getElementById('mt-forge').classList.add('on-metal');
-  document.getElementById('tx-branch').classList.add('on-marble');
+  document.getElementById('tx-marble').classList.add('on-marble');
   document.getElementById('mb-white').classList.add('on-marble');
 }
 
